@@ -10,6 +10,8 @@
 #include "addonmanager.h"
 #include "types.h"
 #include "usbhostmanager.h"
+#include "gp_link.h"
+
 
 // Inputs for Core0
 #include "addons/analog.h"
@@ -333,6 +335,9 @@ void GP2040::run() {
 
 		// Copy Processed Gamepad for Core1 (race condition otherwise)
 		memcpy(&processedGamepad->state, &gamepad->state, sizeof(GamepadState));
+
+		// AQUÍ: estado ya procesado, listo para enviar por UART sin afectar el pipeline
+        GpLink_Tick(processedGamepad);
 
 		// Process Input Driver
 		bool processed = inputDriver->process(gamepad);

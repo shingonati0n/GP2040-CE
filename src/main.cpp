@@ -9,6 +9,7 @@
 // GP2040 includes
 #include "gp2040.h"
 #include "gp2040aux.h"
+#include "gp_link.h"
 
 #include <cstdlib>
 
@@ -39,6 +40,8 @@ int main() {
 
 	// Create GP2040 Main Core - Setup Core0
 	gp2040Core0->setup();
+
+	GpLink_Init();
 
 	// Create GP2040 Thread for Core1
 	multicore_launch_core1(core1);

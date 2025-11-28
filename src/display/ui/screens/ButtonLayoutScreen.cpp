@@ -4,7 +4,8 @@
 #include "drivers/ps4/PS4Driver.h"
 #include "drivers/xbone/XBOneDriver.h"
 #include "drivers/xinput/XInputDriver.h"
-#include "drivers/p5general/P5GeneralDriver.h"
+#include "drivers/p5general/P5GeneralDriver.h"  // si tu repo oficial lo trae
+//#include "gp_link.h"
 
 void ButtonLayoutScreen::init() {
     isInputHistoryEnabled = Storage::getInstance().getDisplayOptions().inputHistoryEnabled;
@@ -93,6 +94,15 @@ void ButtonLayoutScreen::shutdown() {
 }
 
 int8_t ButtonLayoutScreen::update() {
+        // DEBUG: ver si esta pantalla se ejecuta
+    // static uint32_t lastDebug = 0;
+    // uint32_t now = getMillis();
+    // if (now - lastDebug > 500) { // cada 500 ms aprox
+    //     const char* dbg = "UPDT";
+    //     GpLink_SendHeader(dbg, 4); // A7 "UPDT"
+    //     lastDebug = now;
+    // }
+
     bool configMode = DriverManager::getInstance().isConfigMode();
     uint8_t profileNumber = getGamepad()->getOptions().profileNumber;
     
@@ -136,136 +146,215 @@ int8_t ButtonLayoutScreen::update() {
 }
 
 void ButtonLayoutScreen::generateHeader() {
-	// Limit to 21 chars with 6x8 font for now
-	statusBar.clear();
-	Storage& storage = Storage::getInstance();
+    statusBar.clear();
+    Storage& storage = Storage::getInstance();
 
-	// Display Profile # banner
-	if ( bannerDisplay ) {
-		if (((getMillis() - bannerDelayStart) / 1000) < bannerDelay) {
-			if (bannerMessage.empty()) {
-				statusBar.assign(storage.currentProfileLabel(), strlen(storage.currentProfileLabel()));
-				if (statusBar.empty()) {
-					statusBar = "     Profile #";
-					statusBar +=  std::to_string(getGamepad()->getOptions().profileNumber);
-				} else {
-					statusBar.insert(statusBar.begin(), (21-statusBar.length())/2, ' ');
-				}
-			} else {
-				statusBar = bannerMessage;
-			}
-			return;
-		} else {
-			bannerDisplay = false;
+    bool useBanner = false;
+
+    // --- LÓGICA DE BANNER SIN RETURN TEMPRANO ---
+    if (bannerDisplay) {
+        if (((getMillis() - bannerDelayStart) / 1000) < bannerDelay) {
+            // Mientras dure el banner, usamos statusBar para el banner
+            useBanner = true;
+
+            if (bannerMessage.empty()) {
+                statusBar.assign(storage.currentProfileLabel(), strlen(storage.currentProfileLabel()));
+                if (statusBar.empty()) {
+                    statusBar = "     Profile #";
+                    statusBar += std::to_string(getGamepad()->getOptions().profileNumber);
+                } else {
+                    statusBar.insert(statusBar.begin(), (21 - statusBar.length()) / 2, ' ');
+                }
+            } else {
+                statusBar = bannerMessage;
+            }
+        } else {
+            // Se acabó el banner, volvemos al header normal
+            bannerDisplay = false;
             bannerMessage.clear();
-		}
-	}
-
-    if (showInputMode) {
-        // Display standard header
-        switch (inputMode)
-        {
-            case INPUT_MODE_PS3:    statusBar += "PS3"; break;
-            case INPUT_MODE_GENERIC: statusBar += "USBHID"; break;
-            case INPUT_MODE_SWITCH: statusBar += "SWITCH"; break;
-            case INPUT_MODE_MDMINI: statusBar += "GEN/MD"; break;
-            case INPUT_MODE_NEOGEO: statusBar += "NGMINI"; break;
-            case INPUT_MODE_PCEMINI: statusBar += "PCE/TG"; break;
-            case INPUT_MODE_EGRET: statusBar += "EGRET"; break;
-            case INPUT_MODE_ASTRO: statusBar += "ASTRO"; break;
-            case INPUT_MODE_PSCLASSIC: statusBar += "PSC"; break;
-            case INPUT_MODE_XBOXORIGINAL: statusBar += "OGXBOX"; break;
-            case INPUT_MODE_SWITCH_PRO: statusBar += "SWPRO"; break;
-            case INPUT_MODE_PS4:
-                statusBar += "PS4";
-                if(((PS4Driver*)DriverManager::getInstance().getDriver())->getAuthSent() == true )
-                    statusBar += ":AS";
-                else
-                    statusBar += "   ";
-                break;
-            case INPUT_MODE_PS5:
-                statusBar += "PS5";
-                if(((PS4Driver*)DriverManager::getInstance().getDriver())->getAuthSent() == true )
-                    statusBar += ":AS";
-                else
-                    statusBar += "   ";
-                break;
-            case INPUT_MODE_P5GENERAL:
-                statusBar += "P5G";
-                if(((P5GeneralDriver*)DriverManager::getInstance().getDriver())->getAuthSent() == true )
-                    statusBar += ":AS";
-                else
-                    statusBar += "   ";
-                break;
-            case INPUT_MODE_XBONE:
-                statusBar += "XBON";
-                if(((XBOneDriver*)DriverManager::getInstance().getDriver())->getAuthSent() == true )
-                    statusBar += "E";
-                else
-                    statusBar += "*";
-                break;
-            case INPUT_MODE_XINPUT:
-                statusBar += "X";
-                if(((XInputDriver*)DriverManager::getInstance().getDriver())->getAuthSent() == true )
-                    statusBar += "B360";
-                else
-                    statusBar += "INPUT";
-                break;
-            case INPUT_MODE_KEYBOARD: statusBar += "HID-KB"; break;
-            case INPUT_MODE_CONFIG: statusBar += "CONFIG"; break;
         }
     }
 
-    if (showTurboMode) {
-        const TurboOptions& turboOptions = storage.getAddonOptions().turboOptions;
-        if ( turboOptions.enabled ) {
-            statusBar += " T";
-            if ( turboOptions.shotCount < 10 ) // padding
-                statusBar += "0";
-            statusBar += std::to_string(turboOptions.shotCount);
-        } else {
-            statusBar += "    "; // no turbo, don't show Txx setting
+    // --- HEADER NORMAL SOLO SI NO ESTAMOS USANDO BANNER ---
+    if (!useBanner) {
+        if (showInputMode) {
+            switch (inputMode)
+            {
+                case INPUT_MODE_PS3:          statusBar += "PS3";    break;
+                case INPUT_MODE_GENERIC:      statusBar += "USBHID"; break;
+                case INPUT_MODE_SWITCH:       statusBar += "SWITCH"; break;
+                case INPUT_MODE_MDMINI:       statusBar += "GEN/MD"; break;
+                case INPUT_MODE_NEOGEO:       statusBar += "NGMINI"; break;
+                case INPUT_MODE_PCEMINI:      statusBar += "PCE/TG"; break;
+                case INPUT_MODE_EGRET:        statusBar += "EGRET";  break;
+                case INPUT_MODE_ASTRO:        statusBar += "ASTRO";  break;
+                case INPUT_MODE_PSCLASSIC:    statusBar += "PSC";    break;
+                case INPUT_MODE_XBOXORIGINAL: statusBar += "OGXBOX"; break;
+                case INPUT_MODE_SWITCH_PRO:   statusBar += "SWPRO";  break;
+
+                case INPUT_MODE_PS4: {
+                    statusBar += "PS4";
+                    if (((PS4Driver*)DriverManager::getInstance().getDriver())->getAuthSent())
+                        statusBar += ":AS";
+                    else
+                        statusBar += "   ";
+                    break;
+                }
+
+                case INPUT_MODE_PS5: {
+                    statusBar += "PS5";
+                    if (((PS4Driver*)DriverManager::getInstance().getDriver())->getAuthSent())
+                        statusBar += ":AS";
+                    else
+                        statusBar += "   ";
+                    break;
+                }
+
+#ifdef INPUT_MODE_P5GENERAL
+                case INPUT_MODE_P5GENERAL: {
+                    statusBar += "P5G";
+                    if (((P5GeneralDriver*)DriverManager::getInstance().getDriver())->getAuthSent())
+                        statusBar += ":AS";
+                    else
+                        statusBar += "   ";
+                    break;
+                }
+#endif
+
+                case INPUT_MODE_XBONE: {
+                    statusBar += "XBON";
+                    if (((XBOneDriver*)DriverManager::getInstance().getDriver())->getAuthSent())
+                        statusBar += "E";
+                    else
+                        statusBar += "*";
+                    break;
+                }
+
+                case INPUT_MODE_XINPUT: {
+                    statusBar += "X";
+                    if (((XInputDriver*)DriverManager::getInstance().getDriver())->getAuthSent())
+                        statusBar += "B360";
+                    else
+                        statusBar += "INPUT";
+                    break;
+                }
+
+                case INPUT_MODE_KEYBOARD:     statusBar += "HID-KB"; break;
+                case INPUT_MODE_CONFIG:       statusBar += "CONFIG"; break;
+            }
         }
-    }
 
-	const GamepadOptions & options = gamepad->getOptions();
-
-    if (showDpadMode) {
-        switch (gamepad->getActiveDpadMode())
-        {
-            case DPAD_MODE_DIGITAL:      statusBar += " D"; break;
-            case DPAD_MODE_LEFT_ANALOG:  statusBar += " L"; break;
-            case DPAD_MODE_RIGHT_ANALOG: statusBar += " R"; break;
+        // TURBO
+        if (showTurboMode) {
+            const TurboOptions& turboOptions = storage.getAddonOptions().turboOptions;
+            if (turboOptions.enabled) {
+                statusBar += " T";
+                if (turboOptions.shotCount < 10)
+                    statusBar += "0";
+                statusBar += std::to_string(turboOptions.shotCount);
+            } else {
+                statusBar += "    ";
+            }
         }
-    }
 
-    if (showSocdMode) {
-        switch (Gamepad::resolveSOCDMode(gamepad->getOptions()))
-        {
-            case SOCD_MODE_NEUTRAL:               statusBar += " SOCD-N"; break;
-            case SOCD_MODE_UP_PRIORITY:           statusBar += " SOCD-U"; break;
-            case SOCD_MODE_SECOND_INPUT_PRIORITY: statusBar += " SOCD-L"; break;
-            case SOCD_MODE_FIRST_INPUT_PRIORITY:  statusBar += " SOCD-F"; break;
-            case SOCD_MODE_BYPASS:                statusBar += " SOCD-X"; break;
+        const GamepadOptions& options = gamepad->getOptions();
+
+        // DPAD MODE
+        if (showDpadMode) {
+            switch (gamepad->getActiveDpadMode())
+            {
+                case DPAD_MODE_DIGITAL:      statusBar += " D"; break;
+                case DPAD_MODE_LEFT_ANALOG:  statusBar += " L"; break;
+                case DPAD_MODE_RIGHT_ANALOG: statusBar += " R"; break;
+            }
         }
-    }
 
-    if (showMacroMode && macroEnabled) statusBar += " M";
+        // SOCD MODE
+        if (showSocdMode) {
+            switch (Gamepad::resolveSOCDMode(options))
+            {
+                case SOCD_MODE_NEUTRAL:               statusBar += " SOCD-N"; break;
+                case SOCD_MODE_UP_PRIORITY:           statusBar += " SOCD-U"; break;
+                case SOCD_MODE_SECOND_INPUT_PRIORITY: statusBar += " SOCD-L"; break;
+                case SOCD_MODE_FIRST_INPUT_PRIORITY:  statusBar += " SOCD-F"; break;
+                case SOCD_MODE_BYPASS:                statusBar += " SOCD-X"; break;
+            }
+        }
 
-    if (showProfileMode) {
-        statusBar += " ";
+        // MACRO
+        if (showMacroMode && macroEnabled)
+            statusBar += " M";
 
-        std::string profile;
-        profile.assign(storage.currentProfileLabel(), strlen(storage.currentProfileLabel()));
-        if (profile.empty()) {
-            statusBar += std::to_string(getGamepad()->getOptions().profileNumber);
-        } else {
-            statusBar += profile;
+        // PROFILE
+        if (showProfileMode) {
+            statusBar += " ";
+
+            std::string profile;
+            profile.assign(storage.currentProfileLabel(), strlen(storage.currentProfileLabel()));
+            if (profile.empty()) {
+                statusBar += std::to_string(options.profileNumber);
+            } else {
+                statusBar += profile;
+            }
         }
     }
 
     trim(statusBar);
+
+    // ------------------------------------------------------------------
+    // SIEMPRE llegamos acá ⇒ siempre se envía STATUS + HEADER por UART
+    // ------------------------------------------------------------------
+
+//     const GamepadOptions& options = gamepad->getOptions();
+//     uint8_t socd = (uint8_t)Gamepad::resolveSOCDMode(options);
+
+//     uint8_t authMode = 0;
+//     switch (inputMode)
+//     {
+//         case INPUT_MODE_PS4:
+//         case INPUT_MODE_PS5:
+//             if (((PS4Driver*)DriverManager::getInstance().getDriver())->getAuthSent())
+//                 authMode = 1;
+//             break;
+
+//         case INPUT_MODE_XBONE:
+//             if (((XBOneDriver*)DriverManager::getInstance().getDriver())->getAuthSent())
+//                 authMode = 1;
+//             break;
+
+//         case INPUT_MODE_XINPUT:
+//             if (((XInputDriver*)DriverManager::getInstance().getDriver())->getAuthSent())
+//                 authMode = 1;
+//             break;
+
+// #ifdef INPUT_MODE_P5GENERAL
+//         case INPUT_MODE_P5GENERAL:
+//             if (((P5GeneralDriver*)DriverManager::getInstance().getDriver())->getAuthSent())
+//                 authMode = 1;
+//             break;
+// #endif
+
+//         default:
+//             authMode = 0;
+//             break;
+//     }
+
+//     // STATUS (A5)
+//     GpLink_UpdateStatus(
+//         static_cast<uint8_t>(inputMode),
+//         socd,
+//         authMode
+//     );
+
+//     // HEADER (A7): aunque sea banner, lo mandamos tal cual está en statusBar
+//     if (!statusBar.empty()) {
+//         GpLink_SendHeader(
+//             statusBar.c_str(),
+//             static_cast<uint8_t>(statusBar.size())
+//         );
+//    }
 }
+
 
 void ButtonLayoutScreen::drawScreen() {
     if (bannerDisplay) {
@@ -352,89 +441,97 @@ GPWidget* ButtonLayoutScreen::pushElement(GPButtonLayout element) {
 }
 
 void ButtonLayoutScreen::processInputHistory() {
-	std::deque<std::string> pressed;
+    std::deque<std::string> pressed;
 
-	// Get key states
-	std::array<bool, INPUT_HISTORY_MAX_INPUTS> currentInput = {
+    // Obtener estados de teclas
+    std::array<bool, INPUT_HISTORY_MAX_INPUTS> currentInput = {
 
-		pressedUp(),
-		pressedDown(),
-		pressedLeft(),
-		pressedRight(),
+        pressedUp(),
+        pressedDown(),
+        pressedLeft(),
+        pressedRight(),
 
-		pressedUpLeft(),
-		pressedUpRight(),
-		pressedDownLeft(),
-		pressedDownRight(),
+        pressedUpLeft(),
+        pressedUpRight(),
+        pressedDownLeft(),
+        pressedDownRight(),
 
-		getProcessedGamepad()->pressedB1(),
-		getProcessedGamepad()->pressedB2(),
-		getProcessedGamepad()->pressedB3(),
-		getProcessedGamepad()->pressedB4(),
-		getProcessedGamepad()->pressedL1(),
-		getProcessedGamepad()->pressedR1(),
-		getProcessedGamepad()->pressedL2(),
-		getProcessedGamepad()->pressedR2(),
-		getProcessedGamepad()->pressedS1(),
-		getProcessedGamepad()->pressedS2(),
-		getProcessedGamepad()->pressedL3(),
-		getProcessedGamepad()->pressedR3(),
-		getProcessedGamepad()->pressedA1(),
-		getProcessedGamepad()->pressedA2(),
-	};
+        getProcessedGamepad()->pressedB1(),
+        getProcessedGamepad()->pressedB2(),
+        getProcessedGamepad()->pressedB3(),
+        getProcessedGamepad()->pressedB4(),
+        getProcessedGamepad()->pressedL1(),
+        getProcessedGamepad()->pressedR1(),
+        getProcessedGamepad()->pressedL2(),
+        getProcessedGamepad()->pressedR2(),
+        getProcessedGamepad()->pressedS1(),
+        getProcessedGamepad()->pressedS2(),
+        getProcessedGamepad()->pressedL3(),
+        getProcessedGamepad()->pressedR3(),
+        getProcessedGamepad()->pressedA1(),
+        getProcessedGamepad()->pressedA2(),
+    };
 
-	uint8_t mode = ((displayModeLookup.count(inputMode) > 0) ? displayModeLookup.at(inputMode) : 0);
+    uint8_t mode = ((displayModeLookup.count(inputMode) > 0) ? displayModeLookup.at(inputMode) : 0);
 
-	// Check if any new keys have been pressed
-	if (lastInput != currentInput) {
-		// Iterate through array
-		for (uint8_t x=0; x<INPUT_HISTORY_MAX_INPUTS; x++) {
-			// Add any pressed keys to deque
-			std::string inputChar(displayNames[mode][x]);
-			if (currentInput[x] && (inputChar != "")) pressed.push_back(inputChar);
-		}
-		// Update the last keypress array
-		lastInput = currentInput;
-	}
+    // Ver si hubo nuevas teclas presionadas
+    if (lastInput != currentInput) {
+        for (uint8_t x = 0; x < INPUT_HISTORY_MAX_INPUTS; x++) {
+            std::string inputChar(displayNames[mode][x]);
+            if (currentInput[x] && (inputChar != "")) {
+                pressed.push_back(inputChar);
+            }
+        }
+        lastInput = currentInput;
+    }
 
-	if (pressed.size() > 0) {
-		std::string newInput;
-		for(const auto &s : pressed) {
-				if(!newInput.empty())
-						newInput += "+";
-				newInput += s;
-		}
+    if (pressed.size() > 0) {
+        std::string newInput;
+        for (const auto& s : pressed) {
+            if (!newInput.empty())
+                newInput += "+";
+            newInput += s;
+        }
 
-		inputHistory.push_back(newInput);
-	}
+        inputHistory.push_back(newInput);
+    }
 
-	if (inputHistory.size() > (inputHistoryLength / 2) + 1) {
-		inputHistory.pop_front();
-	}
+    if (inputHistory.size() > (inputHistoryLength / 2) + 1) {
+        inputHistory.pop_front();
+    }
 
-	std::string ret;
+    std::string ret;
 
-	for (auto it = inputHistory.crbegin(); it != inputHistory.crend(); ++it) {
-		std::string newRet = ret;
-		if (!newRet.empty())
-			newRet = " " + newRet;
+    for (auto it = inputHistory.crbegin(); it != inputHistory.crend(); ++it) {
+        std::string newRet = ret;
+        if (!newRet.empty())
+            newRet = " " + newRet;
 
-		newRet = *it + newRet;
-		ret = newRet;
+        newRet = *it + newRet;
+        ret = newRet;
 
-		if (ret.size() >= inputHistoryLength) {
-			break;
-		}
-	}
+        if (ret.size() >= inputHistoryLength) {
+            break;
+        }
+    }
 
-	if(ret.size() >= inputHistoryLength) {
-		historyString = ret.substr(ret.size() - inputHistoryLength);
-	} else {
-		historyString = ret;
-	}
+    if (ret.size() >= inputHistoryLength) {
+        historyString = ret.substr(ret.size() - inputHistoryLength);
+    } else {
+        historyString = ret;
+    }
 
     footer = historyString;
+
+    // Enviar input history al RP2040 (A6)
+    // if (!historyString.empty()) {
+    //     GpLink_SendHistory(
+    //         historyString.c_str(),
+    //         static_cast<uint8_t>(historyString.size())
+    //     );
+    // }
 }
+
 
 bool ButtonLayoutScreen::compareCustomLayouts()
 {
